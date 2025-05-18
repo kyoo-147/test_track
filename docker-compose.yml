@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  mongo:
+    image: mongo:5.0
+    container_name: mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+  backend:
+    build:
+      context: ./myapp-backend
+      dockerfile: Dockerfile
+    container_name: myapp-backend
+    ports:
+      - "5000:5000"
+    environment:
+      - MONGO_URI=mongodb://mongo:27017/myappDB
+      - NODE_ENV=production
+    depends_on:
+      - mongo
+
+  frontend:
+    build:
+      context: ./myapp-frontend
+      dockerfile: Dockerfile
+    container_name: myapp-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+
+volumes:
+  mongo-data:

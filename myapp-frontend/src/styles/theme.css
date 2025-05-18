@@ -1,0 +1,110 @@
+/* src/styles/theme.css */
+
+/* 1. Biến CSS – Palette & Shadows */
+:root {
+    --color-primary: #76B900;         /* NVIDIA Green citeturn0search1 */
+    --color-accent: #1E88E5;          /* Material Blue 600 citeturn0search7 */
+    --bg-sidebar: var(--color-primary);
+    --bg-layout: #F5F5F5;             /* Light Gray citeturn0search18 */
+    --bg-content: #FFFFFF;
+    --text-primary: #212121;          /* Dark Gray */
+    --text-secondary: #616161;        /* Mid Gray */
+    --shadow-card: 0 4px 12px rgba(0,0,0,0.06);
+  }
+  
+  /* 2. Layout và Sider */
+  .ant-layout { background: var(--bg-layout); }
+  .ant-layout-sider {
+    background: #001529;
+  }
+  .ant-menu-dark .ant-menu-item-selected {
+    background: var(--color-accent) !important;  
+  }
+  .ant-menu-item a { color: #fff !important; }
+  
+  /* 3. Header */
+  .ant-layout-header {
+    background: var(--bg-content);
+    padding: 0 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: var(--shadow-card);
+  }
+  
+  /* 4. Filter bar & Table container */
+  .filter-bar {
+    background: var(--bg-content);
+    padding: 16px;
+    margin-bottom: 16px;
+    border-radius: 8px;
+    box-shadow: var(--shadow-card);
+  }
+  .table-container {
+    background: var(--bg-content);
+    padding: 16px;
+    border-radius: 8px;
+    box-shadow: var(--shadow-card);
+    overflow-x: auto; /* Cuộn ngang nếu bảng quá rộng */
+  }
+  
+  /* 5. Table striping & hover */
+  .ant-table-tbody > tr:hover > td {
+    background: #E8F5E9; /* very light green hover citeturn0search5 */
+  }
+  .even-row > td { background: #FFFFFF; }
+  .odd-row  > td { background: #F1F8E9; /* subtle stripe citeturn0search5 */ }
+  
+  /* 6. Buttons */
+  .ant-btn-primary {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+    color: #fff;
+  }
+  .ant-btn-primary:hover {
+    background: #5F9F00; /* slightly darker green */
+    border-color: #5F9F00;
+  }
+  .ant-btn-default {
+    color: var(--color-accent);
+    border-color: var(--color-accent);
+  }
+  .ant-btn-default:hover {
+    background: rgba(30,136,229,0.1);
+  }
+  
+  /* 7. Text & Inputs */
+  body, .ant-typography { color: var(--text-primary); }
+  .ant-input, .ant-select-selector, .ant-input-number, .ant-btn {
+    border-radius: 4px;
+  }
+  
+  /* Responsive Modal */
+  .ant-modal {
+    max-width: 90%; /* Đặt chiều rộng tối đa cho Modal */
+  }
+  
+  /* Responsive Form */
+  .ant-form-item {
+    margin-bottom: 16px; /* Khoảng cách giữa các mục trong Form */
+  }
+  
+  /* Responsive Table */
+  .ant-table {
+    font-size: 14px; /* Kích thước chữ nhỏ hơn */
+  }
+  .ant-table-tbody > tr > td {
+    white-space: nowrap; /* Không xuống dòng */
+    text-overflow: ellipsis; /* Cắt ngắn nội dung dài */
+    overflow: hidden;
+  }
+
+/* Sidebar Styles */
+.sider-logo {
+  height: 48px;
+  margin: 16px;
+  text-align: center;
+  color: #fff;
+  font-size: 20px;
+  font-weight: bold;
+}
