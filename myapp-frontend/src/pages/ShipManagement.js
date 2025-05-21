@@ -1,94 +1,92 @@
 // src/pages/ShipManagement.js
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-  Table,
-  Button,
-  Input,
-  Modal,
-  Form,
-  Space,
-  Dropdown,
-  Checkbox,
-  Select,
-  Row,
-  Col,
-  message
+  Table, Button, Input, Modal, Form, Space, Select, Row, Col, DatePicker, message
 } from 'antd';
-import {
-  DownOutlined,
-  ReloadOutlined,
-  SettingOutlined
-} from '@ant-design/icons';
+import { ReloadOutlined } from '@ant-design/icons';
 import axios from 'axios';
-import '../styles/theme.css';
+import moment from 'moment';
 
 export default function ShipManagement() {
   const [data, setData] = useState([]);
+  const [companies, setCompanies] = useState([]);
+  const [subscriptions, setSubscriptions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [visible, setVisible] = useState(false);
   const [editing, setEditing] = useState(null);
-  const [showCols, setShowCols] = useState([
-    '_id','shipName','code','ip','company',
-    'networkPackage','activation','servicePackage',
-    'status','note','action'
-  ]);
   const [form] = Form.useForm();
 
   const columns = [
-    { title: 'ID', dataIndex: '_id', key: '_id' },
     { title: 'Tên tàu', dataIndex: 'shipName', key: 'shipName' },
-    { title: 'Mã hiệu', dataIndex: 'code', key: 'code' },
+    { title: 'MMSI', dataIndex: 'mmsi', key: 'mmsi' },
     { title: 'Địa chỉ IP', dataIndex: 'ip', key: 'ip' },
-    { title: 'Công ty', dataIndex: 'company', key: 'company' },
-    { title: 'Gói thuê bao', dataIndex: 'networkPackage', key: 'networkPackage' },
-    { title: 'Kích hoạt', dataIndex: 'activation', key: 'activation' },
-    { title: 'Gói dịch vụ', dataIndex: 'servicePackage', key: 'servicePackage' },
-    { title: 'Trạng thái', dataIndex: 'status', key: 'status' },
-    { title: 'Ghi chú', dataIndex: 'note', key: 'note' },
+    { title: 'Loại tàu', dataIndex: 'shipType', key: 'shipType' },
+    {
+      title: 'Ngày lắp đặt',
+      dataIndex: 'installationDate',
+      key: 'installationDate',
+      render: d => d ? moment(d).format('DD-MM-YYYY') : ''
+    },
+    { title: 'Loại thiết bị', dataIndex: 'deviceType', key: 'deviceType' },
+    { title: 'Trạng thái Starlink', dataIndex: 'starlinkStatus', key: 'starlinkStatus' },
     {
       title: 'Hành động',
       key: 'action',
-      render: (_, record) => (
+      render: (_, rec) => (
         <Space>
-          <Button type="link" onClick={() => onEdit(record)}>Sửa</Button>
-          <Button type="link" danger onClick={() => onDelete(record._id)}>Xóa</Button>
-          <Button size="small" onClick={() => onCheck(record._id)}>Kiểm tra</Button>
+          <Button type="link" onClick={() => onEdit(rec)}>Sửa</Button>
+          <Button type="link" danger onClick={() => onDelete(rec._id)}>Xóa</Button>
         </Space>
       )
     }
   ];
 
-  // Fetch dữ liệu
-  const fetchData = async (filters = {}) => {
+  // fetch ships
+  const fetchData = async () => {
     setLoading(true);
     try {
-      const res = await axios.get('/api/ships', { params: filters });
-      setData(res.data.map(item => ({ ...item, key: item._id })));
+      const res = await axios.get('/api/ships');
+      setData(res.data);
     } catch {
-      message.error('Không thể tải dữ liệu');
+      message.error('Không thể tải dữ liệu tàu');
     } finally {
       setLoading(false);
     }
   };
 
+  // fetch companies
+  const fetchCompanies = async () => {
+    try {
+      const res = await axios.get('/api/companies');
+      setCompanies(res.data);
+    } catch {
+      message.error('Không thể tải danh sách công ty');
+    }
+  };
+
   useEffect(() => {
     fetchData();
+    fetchCompanies();
   }, []);
 
-  // Các handler
-  const onSearchCompany = v => fetchData({ company: v });
-  const onSearchShip = v => fetchData({ shipName: v });
-  const onRefresh = () => fetchData();
   const onCreate = () => {
     setEditing(null);
     form.resetFields();
     setVisible(true);
   };
+
   const onEdit = record => {
     setEditing(record);
-    form.setFieldsValue({ ...record });
+    setSubscriptions(
+      companies.find(c => c._id === record.company)?.subscriptions || []
+    );
+    form.setFieldsValue({
+      ...record,
+      installationDate: record.installationDate ? moment(record.installationDate) : null
+    });
     setVisible(true);
   };
+
   const onDelete = async id => {
     try {
       await axios.delete(`/api/ships/${id}`);
@@ -98,19 +96,21 @@ export default function ShipManagement() {
       message.error('Xóa thất bại');
     }
   };
-  const onCheck = id => {
-    // Tùy chỉnh gọi API kiểm tra trạng thái thực tế
-    message.info(`Kiểm tra trạng thái tàu ${id}`);
-  };
+
   const onFinish = async values => {
+    const payload = {
+      ...values,
+      installationDate: values.installationDate
+        ? values.installationDate.toISOString()
+        : null
+    };
     try {
       if (editing) {
-        await axios.put(`/api/ships/${editing._id}`, values);
-        message.success('Cập nhật thành công');
+        await axios.put(`/api/ships/${editing._id}`, payload);
       } else {
-        await axios.post('/api/ships', values);
-        message.success('Tạo mới thành công');
+        await axios.post('/api/ships', payload);
       }
+      message.success('Lưu thành công');
       setVisible(false);
       form.resetFields();
       fetchData();
@@ -119,189 +119,178 @@ export default function ShipManagement() {
     }
   };
 
-  // Cài đặt cột hiển thị
-  const menu = (
-    <div style={{ padding: 8 }}>
-      {columns.map(col =>
-        col.key !== 'action' ? (
-          <Checkbox
-            key={col.key}
-            checked={showCols.includes(col.key)}
-            onChange={e => {
-              setShowCols(prev =>
-                e.target.checked
-                  ? [...prev, col.key]
-                  : prev.filter(k => k !== col.key)
-              );
-            }}
-          >
-            {col.title}
-          </Checkbox>
-        ) : null
-      )}
-    </div>
-  );
-  const visibleColumns = columns.filter(col => showCols.includes(col.key));
+  const handleCompanyChange = companyId => {
+    const c = companies.find(x => x._id === companyId);
+    setSubscriptions(c?.subscriptions || []);
+    form.setFieldsValue({ networkPackage: undefined, servicePackage: undefined });
+  };
+
+  const handleSubscriptionChange = subscriptionId => {
+    const s = subscriptions.find(x => x._id === subscriptionId);
+    form.setFieldsValue({ servicePackage: s?.servicePackage || undefined });
+  };
 
   return (
     <>
-      {/* Thanh điều khiển */}
       <Space wrap style={{ marginBottom: 16 }}>
-      <div className="filter-bar">
-      <Space wrap>
-        <Input.Search placeholder="Tìm theo công ty" onSearch={onSearchCompany} style={{ width: 200 }} />
-        <Input.Search placeholder="Tìm theo tên tàu" onSearch={onSearchShip} style={{ width: 200 }} />
         <Button type="primary" onClick={onCreate}>Tạo mới</Button>
-        <Button icon={<ReloadOutlined />} onClick={onRefresh}>Refresh</Button>
-        <Dropdown overlay={menu} trigger={['click']}>
-          <Button icon={<SettingOutlined />}>Cài đặt <DownOutlined /></Button>
-        </Dropdown>
+        <Button icon={<ReloadOutlined />} onClick={fetchData}>Refresh</Button>
       </Space>
-      </div>
-     </Space>
 
-      {/* Bảng dữ liệu */}
-      <div className="table-container">
       <Table
         loading={loading}
-        columns={visibleColumns}
+        columns={columns}
         dataSource={data}
         pagination={{ pageSize: 10 }}
       />
-      </div>
 
-      {/* Modal Thêm/Sửa */}
       <Modal
-        width={700}
+        width={800}
         title={editing ? 'Chỉnh sửa tàu' : 'Thêm tàu'}
         open={visible}
         onCancel={() => { setVisible(false); form.resetFields(); }}
         onOk={() => form.submit()}
       >
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={onFinish}
-          initialValues={{
-            shipName: '',
-            code: '',
-            ip: '',
-            company: '',
-            networkPackage: '',
-            activation: undefined,
-            servicePackage: '',
-            status: undefined,
-            note: ''
-          }}
-        >
+        <Form form={form} layout="vertical" onFinish={onFinish}>
           <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                name="company"
+                label="Tên công ty"
+                rules={[{ required: true, message: 'Chọn công ty' }]}
+              >
+                <Select placeholder="Chọn công ty" onChange={handleCompanyChange}>
+                  {companies.map(c => (
+                    <Select.Option key={c._id} value={c._id}>{c.name}</Select.Option>
+                  ))}
+                </Select>
+              </Form.Item>
+            </Col>
+
+            <Col span={12}>
+              <Form.Item
+                name="networkPackage"
+                label="Gói thuê bao"
+                rules={[{ required: true, message: 'Chọn gói thuê bao' }]}
+              >
+                <Select
+                  placeholder="Chọn gói thuê bao"
+                  onChange={handleSubscriptionChange}
+                  disabled={!subscriptions.length}
+                >
+                  {subscriptions.map(s => (
+                    <Select.Option key={s._id} value={s._id}>{s.networkPackage}</Select.Option>
+                  ))}
+                </Select>
+              </Form.Item>
+            </Col>
+
+            <Col span={12}>
+              <Form.Item
+                name="servicePackage"
+                label="Gói dịch vụ"
+                rules={[{ required: true, message: 'Chọn gói dịch vụ' }]}
+              >
+                <Input disabled placeholder="Tự động từ gói thuê bao" />
+              </Form.Item>
+            </Col>
+
             <Col span={12}>
               <Form.Item
                 name="shipName"
                 label="Tên tàu"
-                rules={[
-                  { required: true, message: 'Vui lòng nhập tên tàu' },
-                  { min: 2, message: 'Tối thiểu 2 ký tự' },
-                  { max: 50, message: 'Tối đa 50 ký tự' },
-                  { pattern: /^[A-Za-z0-9 ]+$/, message: 'Chỉ chữ, số và khoảng trắng' }
-                ]}
+                rules={[{ required: true, message: 'Nhập tên tàu' }]}
               >
-                <Input placeholder="VD: Tau A" />
+                <Input placeholder="VD: Tàu A" />
               </Form.Item>
             </Col>
+
             <Col span={12}>
               <Form.Item
-                name="code"
-                label="Mã hiệu"
+                name="mmsi"
+                label="MMSI"
                 rules={[
-                  { required: true, message: 'Vui lòng nhập mã hiệu' },
-                  { pattern: /^\d{9}$/, message: 'Mã hiệu phải gồm 9 chữ số' }
+                  { required: true, message: 'Nhập MMSI' },
+                  { pattern: /^\d{9}$/, message: 'MMSI phải là 9 chữ số' }
                 ]}
               >
-                <Input placeholder="123456789" />
+                <Input placeholder="VD: 123456789" />
               </Form.Item>
             </Col>
+
             <Col span={12}>
               <Form.Item
                 name="ip"
                 label="Địa chỉ IP"
                 rules={[
-                  { required: true, message: 'Vui lòng nhập địa chỉ IP' },
-                  { pattern: /^(?:\d{1,3}\.){3}\d{1,3}$/, message: 'IP không hợp lệ' }
+                  { required: true, message: 'Nhập địa chỉ IP' },
+                  {
+                    pattern:
+                      /^(25[0-5]|2[0-4]\d|[01]?\d?\d)\.(25[0-5]|2[0-4]\d|[01]?\d?\d)\.(25[0-5]|2[0-4]\d|[01]?\d?\d)\.(25[0-5]|2[0-4]\d|[01]?\d?\d)$/,
+                    message: 'IP không hợp lệ'
+                  }
                 ]}
               >
-                <Input placeholder="172.168.0.1" />
+                <Input placeholder="VD: 192.168.1.1" />
               </Form.Item>
             </Col>
+
             <Col span={12}>
               <Form.Item
-                name="company"
-                label="Công ty"
-                rules={[
-                  { required: true, message: 'Vui lòng nhập tên công ty' },
-                  { min: 2, message: 'Tối thiểu 2 ký tự' },
-                  { max: 100, message: 'Tối đa 100 ký tự' }
-                ]}
+                name="shipType"
+                label="Loại tàu"
+                rules={[{ required: true, message: 'Chọn loại tàu' }]}
               >
-                <Input placeholder="Công ty A" />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                name="networkPackage"
-                label="Gói thuê bao"
-                rules={[
-                  { pattern: /^\d+G$/, message: 'Ví dụ: 50G, 100G' }
-                ]}
-              >
-                <Input placeholder="50G" />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                name="activation"
-                label="Kích hoạt"
-                rules={[{ required: true, message: 'Chọn trạng thái kích hoạt' }]}
-              >
-                <Select placeholder="Chọn">
-                  <Select.Option value="active">active</Select.Option>
-                  <Select.Option value="inactive">inactive</Select.Option>
-                  <Select.Option value="debt">nợ</Select.Option>
+                <Select placeholder="Chọn loại tàu">
+                  <Select.Option value="Tàu hàng rời">Tàu hàng rời</Select.Option>
+                  <Select.Option value="Tàu cont">Tàu cont</Select.Option>
+                  <Select.Option value="Tàu chở dầu">Tàu chở dầu</Select.Option>
+                  <Select.Option value="Tàu chở cont">Tàu chở cont</Select.Option>
                 </Select>
               </Form.Item>
             </Col>
+
             <Col span={12}>
               <Form.Item
-                name="servicePackage"
-                label="Gói dịch vụ"
-                rules={[
-                  { required: true, message: 'Vui lòng nhập gói dịch vụ' },
-                  { max: 20, message: 'Tối đa 20 ký tự' }
-                ]}
+                name="installationDate"
+                label="Ngày lắp đặt"
+                rules={[{ required: true, message: 'Chọn ngày lắp đặt' }]}
               >
-                <Input placeholder="2" />
+                <DatePicker
+                  format="DD-MM-YYYY"
+                  style={{ width: '100%' }}
+                  placeholder="DD-MM-YYYY"
+                />
               </Form.Item>
             </Col>
+
             <Col span={12}>
               <Form.Item
-                name="status"
-                label="Trạng thái"
-                rules={[{ required: true, message: 'Chọn trạng thái' }]}
+                name="deviceType"
+                label="Loại thiết bị"
+                rules={[{ required: true, message: 'Chọn loại thiết bị' }]}
               >
-                <Select placeholder="Chọn">
-                  <Select.Option value="active">active</Select.Option>
-                  <Select.Option value="limit">limit</Select.Option>
-                  <Select.Option value="suspended">suspended</Select.Option>
-                  <Select.Option value="noactive">no active</Select.Option>
+                <Select placeholder="Chọn thiết bị">
+                  <Select.Option value="Router">Router</Select.Option>
                 </Select>
               </Form.Item>
             </Col>
+
+            <Col span={12}>
+              <Form.Item
+                name="starlinkStatus"
+                label="Trạng thái Starlink"
+                rules={[{ required: true, message: 'Chọn trạng thái Starlink' }]}
+              >
+                <Select placeholder="Chọn trạng thái">
+                  <Select.Option value="Online">Online</Select.Option>
+                  <Select.Option value="Offline">Offline</Select.Option>
+                </Select>
+              </Form.Item>
+            </Col>
+
             <Col span={24}>
-              <Form.Item
-                name="note"
-                label="Ghi chú"
-                rules={[{ max: 200, message: 'Tối đa 200 ký tự' }]}
-              >
+              <Form.Item name="note" label="Ghi chú">
                 <Input.TextArea rows={2} placeholder="Ghi chú (nếu có)" />
               </Form.Item>
             </Col>

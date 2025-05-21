@@ -4,10 +4,10 @@ const Package = require('../models/Package');
 // GET tất cả (có filter)
 exports.getPackages = async (req, res) => {
   const filter = {};
-  if (req.query.id)       filter._id       = req.query.id;
-  if (req.query.name)     filter.name      = new RegExp(req.query.name, 'i');
+  if (req.query.id)   filter._id   = req.query.id;
+  if (req.query.name) filter.name  = new RegExp(req.query.name, 'i');
   try {
-    const list = await Package.find(filter);
+    const list = await Package.find(filter).populate('vessel', 'shipName');
     res.json(list);
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err });

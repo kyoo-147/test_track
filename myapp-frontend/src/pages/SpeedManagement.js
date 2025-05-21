@@ -1,46 +1,27 @@
 // src/pages/SpeedManagement.js
 import { useState, useEffect } from 'react';
 import {
-  Table,
-  Button,
-  InputNumber,
-  Input,
-  Modal,
-  Form,
-  Space,
-  Dropdown,
-  Checkbox,
-  Row,
-  Col,
-  message
+  Table, Button, Input, Modal, Form, Space, Select, Row, Col, message
 } from 'antd';
-import { DownOutlined, ReloadOutlined, SettingOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import '../styles/theme.css';
 
-
 export default function SpeedManagement() {
   const [data, setData]         = useState([]);
+  const [companies, setCompanies] = useState([]);
   const [loading, setLoading]   = useState(false);
   const [visible, setVisible]   = useState(false);
   const [editing, setEditing]   = useState(null);
-  const [showCols, setShowCols] = useState([
-    '_id','upRate','downRate','burst','description','note','action'
-  ]);
   const [form] = Form.useForm();
+  const [selectedRole, setSelectedRole] = useState(null);
 
   // Định nghĩa cột
   const columns = [
-    { title: 'ID', dataIndex: '_id', key: '_id' },
-    { title: 'Tốc độ upload (Mbps)', dataIndex: 'upRate', key: 'upRate' },
-    { title: 'Tốc độ download (Mbps)', dataIndex: 'downRate', key: 'downRate' },
-    { title: 'Burst Limit', dataIndex: 'burst', key: 'burst' },
-    { title: 'Mô tả', dataIndex: 'description', key: 'description' },
-    { title: 'Ghi chú', dataIndex: 'note', key: 'note' },
+    { title: 'Username', dataIndex: 'username', key: 'username' },
+    { title: 'Role', dataIndex: 'role', key: 'role' },
+    { title: 'Company', dataIndex: ['company', 'name'], key: 'company', render: (v, rec) => rec.company?.name || '' },
     {
-      title: 'Hành động',
-      key: 'action',
-      render: (_, rec) => (
+      title: 'Action', key: 'action', render: (_, rec) => (
         <Space>
           <Button type="link" onClick={() => onEdit(rec)}>Edit</Button>
           <Button type="link" danger onClick={() => onDelete(rec._id)}>Del</Button>
@@ -53,204 +34,140 @@ export default function SpeedManagement() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const res = await axios.get('/api/speeds');
-      setData(res.data.map(i => ({ ...i, key: i._id })));
-    } catch {
+      // Lấy danh sách user quản trị và danh sách công ty
+      const [users, comps] = await Promise.all([
+        axios.get('/api/admin-users'),
+        axios.get('/api/companies')
+      ]);
+      setData(users.data.map(i => ({ ...i, key: i._id })));
+      setCompanies(comps.data);
+    } catch (err) {
       message.error('Không thể tải dữ liệu');
+      setCompanies([]); // Đảm bảo không bị undefined
     } finally {
       setLoading(false);
     }
   };
+
   useEffect(() => { fetchData(); }, []);
 
   // Các handler CRUD
   const onCreate = () => {
     setEditing(null);
-    form.resetFields();
+    setSelectedRole(null);
     setVisible(true);
+    // Chờ Modal mở xong, rồi mới reset
+    setTimeout(() => {
+      form.resetFields();
+    }, 0);
   };
   const onEdit = rec => {
     setEditing(rec);
-    form.setFieldsValue(rec);
+    setSelectedRole(rec.role);
+    form.setFieldsValue({ ...rec, company: rec.company?._id });
     setVisible(true);
   };
   const onDelete = async id => {
-    try {
-      await axios.delete(`/api/speeds/${id}`);
-      message.success('Xóa thành công');
-      fetchData();
-    } catch {
-      message.error('Xóa thất bại');
-    }
+    try { await axios.delete(`/api/admin-users/${id}`); message.success('Xóa thành công'); fetchData(); }
+    catch { message.error('Xóa thất bại'); }
   };
   const onFinish = async vals => {
     try {
-      if (editing) {
-        await axios.put(`/api/speeds/${editing._id}`, vals);
-      } else {
-        await axios.post('/api/speeds', vals);
-      }
+      if (selectedRole !== 'Tech') vals.company = undefined;
+      if (editing) await axios.put(`/api/admin-users/${editing._id}`, vals);
+      else await axios.post('/api/admin-users', vals);
       message.success('Thao tác thành công');
-      setVisible(false);
-      form.resetFields();
-      fetchData();
+      setVisible(false); form.resetFields(); fetchData();
     } catch {
       message.error('Thao tác thất bại');
     }
   };
 
-  // Menu cài đặt cột hiển thị
-  const menu = (
-    <div style={{ padding: 8 }}>
-      {columns.map(col =>
-        col.key !== 'action' && (
-          <Checkbox
-            key={col.key}
-            checked={showCols.includes(col.key)}
-            onChange={e => {
-              setShowCols(prev =>
-                e.target.checked
-                  ? [...prev, col.key]
-                  : prev.filter(k => k !== col.key)
-              );
-            }}
-          >
-            {col.title}
-          </Checkbox>
-        )
-      )}
-    </div>
-  );
-  const visibleCols = columns.filter(col => showCols.includes(col.key));
+  // Khi chọn quyền, nếu là Tech thì enable select công ty, ngược lại disable và clear
+  const handleRoleChange = value => {
+    setSelectedRole(value);
+    if (value !== 'Tech') {
+      form.setFieldsValue({ company: undefined });
+    }
+  };
 
   return (
     <>
       {/* Thanh điều khiển */}
-      <Space wrap style={{ marginBottom: 16 }}>
-      <div className="filter-bar">
-      <Space wrap>
+      <Space style={{ marginBottom: 16 }}>
         <Button type="primary" onClick={onCreate}>Tạo mới</Button>
-        <Button icon={<ReloadOutlined />} onClick={fetchData}>Refresh</Button>
-        <Dropdown overlay={menu} trigger={['click']}>
-          <Button icon={<SettingOutlined />}>Cài đặt <DownOutlined/></Button>
-        </Dropdown>
+        <Button onClick={fetchData}>Refresh</Button>
       </Space>
-      </div>
-     </Space>
 
       {/* Bảng dữ liệu */}
-      <div className="table-container">
       <Table
         loading={loading}
-        columns={visibleCols}
+        columns={columns}
         dataSource={data}
         pagination={false}
+        rowKey="_id"
       />
-      </div>
 
       {/* Modal Thêm/Sửa */}
       <Modal
-        title={editing ? 'Chỉnh sửa tốc độ' : 'Thêm tốc độ'}
+        title={editing ? 'Chỉnh sửa user quản trị' : 'Thêm user quản trị'}
         open={visible}
-        onCancel={() => { setVisible(false); form.resetFields(); }}
+        onCancel={() => { setVisible(false); form.resetFields(); setSelectedRole(null); }}
         onOk={() => form.submit()}
+        forceRender
       >
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={onFinish}
-          initialValues={{
-            upRate: null,
-            downRate: null,
-            burst: '',
-            description: '',
-            note: ''
-          }}
-        >
+        <Form form={form} layout="vertical" onFinish={onFinish}>
           <Row gutter={16}>
             <Col span={12}>
-              <Form.Item
-                name="upRate"
-                label="Tốc độ upload (Mbps)"
-                rules={[
-                  { required: true, message: 'Nhập tốc độ upload' },
-                  {
-                    type: 'number',
-                    min: 0.1,
-                    message: 'Tốc độ phải ≥ 0.1 Mbps'
-                  },
-                  {
-                    pattern: /^\d+(\.\d+)?$/,
-                    message: 'Chỉ cho phép số và thập phân'
-                  }
-                ]}
-              >
-                <InputNumber
-                  min={0.1}
-                  step={0.1}
-                  style={{ width: '100%' }}
-                  placeholder="Ví dụ: 4 hoặc 4.5"
-                />
+              <Form.Item name="username" label="Username" rules={[{ required: true }]}>
+                <Input autoFocus />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="password" label="Password" rules={[{ required: true }]}>
+                <Input.Password />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="role" label="Quyền" rules={[{ required: true }]}>
+                <Select
+                  placeholder="Chọn quyền"
+                  onChange={handleRoleChange}
+                  value={selectedRole}
+                >
+                  <Select.Option value="Admin">Admin</Select.Option>
+                  <Select.Option value="Tech">Tech</Select.Option>
+                  <Select.Option value="Sales">Sales</Select.Option>
+                </Select>
               </Form.Item>
             </Col>
             <Col span={12}>
               <Form.Item
-                name="downRate"
-                label="Tốc độ download (Mbps)"
+                name="company"
+                label="Công ty (chỉ cho Tech)"
                 rules={[
-                  { required: true, message: 'Nhập tốc độ download' },
-                  {
-                    type: 'number',
-                    min: 0.1,
-                    message: 'Tốc độ phải ≥ 0.1 Mbps'
-                  },
-                  {
-                    pattern: /^\d+(\.\d+)?$/,
-                    message: 'Chỉ cho phép số và thập phân'
-                  }
+                  ({ getFieldValue }) => ({
+                    validator(_, value) {
+                      if (selectedRole === 'Tech' && !value) {
+                        return Promise.reject('Chọn công ty cho Tech');
+                      }
+                      return Promise.resolve();
+                    }
+                  })
                 ]}
               >
-                <InputNumber
-                  min={0.1}
-                  step={0.1}
-                  style={{ width: '100%' }}
-                  placeholder="Ví dụ: 10 hoặc 10.5"
-                />
-              </Form.Item>
-            </Col>
-            <Col span={24}>
-              <Form.Item
-                name="burst"
-                label="Burst Limit"
-                rules={[
-                  {
-                    pattern: /^\d+M\/\d+M$/,
-                    message: 'Định dạng phải là {số}M/{số}M (e.g., 8M/8M)'
-                  }
-                ]}
-              >
-                <Input placeholder="Ví dụ: 8M/8M" />
-              </Form.Item>
-            </Col>
-            <Col span={24}>
-              <Form.Item
-                name="description"
-                label="Mô tả"
-                rules={[{ max: 100, message: 'Tối đa 100 ký tự' }]}
-              >
-                <Input placeholder="Mô tả (tối đa 100 ký tự)" />
-              </Form.Item>
-            </Col>
-            <Col span={24}>
-              <Form.Item
-                name="note"
-                label="Ghi chú"
-                rules={[{ max: 200, message: 'Tối đa 200 ký tự' }]}
-              >
-                <Input.TextArea
-                  rows={2}
-                  placeholder="Ghi chú (tối đa 200 ký tự)"
-                />
+                <Select
+                  placeholder="Chọn công ty"
+                  allowClear
+                  disabled={selectedRole !== 'Tech'}
+                  showSearch
+                  optionFilterProp="children"
+                  notFoundContent={companies.length === 0 ? 'Không có dữ liệu công ty' : null}
+                >
+                  {companies.map(c => (
+                    <Select.Option key={c._id} value={c._id}>{c.name}</Select.Option>
+                  ))}
+                </Select>
               </Form.Item>
             </Col>
           </Row>

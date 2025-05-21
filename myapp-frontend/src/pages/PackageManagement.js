@@ -2,14 +2,18 @@
 import { useState, useEffect } from 'react';
 import {
   Table, Button, Input, InputNumber, Modal, Form, Space,
-  Dropdown, Checkbox, Row, Col, message
+  Dropdown, Checkbox, Row, Col, Select, message
 } from 'antd';
-import {
-  DownOutlined, ReloadOutlined, SettingOutlined
-} from '@ant-design/icons';
+import { DownOutlined, ReloadOutlined, SettingOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import '../styles/theme.css';
 
+const BANDWIDTH_OPTIONS = [
+  '2Mbps', '5Mbps', '10Mbps', '20Mbps', '50Mbps', '100Mbps'
+];
+const UNIT_OPTIONS = ['1hour', 'day', '1w', '1 tháng'];
+const LIMIT_TYPE_OPTIONS = ['Time Limit', 'Data Limit', 'Both Limit'];
+const PRICE_OPTIONS = [100000, 200000, 500000, 1000000];
 
 export default function PackageManagement() {
   const [data, setData]         = useState([]);
@@ -17,22 +21,22 @@ export default function PackageManagement() {
   const [visible, setVisible]   = useState(false);
   const [editing, setEditing]   = useState(null);
   const [showCols, setShowCols] = useState([
-    '_id','name','type','category','price','duration',
-    'volume','speed','shipName','note','action'
+    '_id','name','radius','limitType','bandwidth','validity','unit','price','sharedUsers','vessel','action'
   ]);
   const [form] = Form.useForm();
+  const [ships, setShips] = useState([]);
 
   const columns = [
     { title:'ID', dataIndex:'_id', key:'_id' },
     { title:'Tên gói', dataIndex:'name', key:'name' },
-    { title:'Loại gói', dataIndex:'type', key:'type' },
-    { title:'Phân loại', dataIndex:'category', key:'category' },
-    { title:'Giá (VNĐ)', dataIndex:'price', key:'price' },
-    { title:'Thời gian (ngày)', dataIndex:'duration', key:'duration' },
-    { title:'Dung lượng', dataIndex:'volume', key:'volume' },
-    { title:'Tốc độ', dataIndex:'speed', key:'speed' },
-    { title:'Tên tàu', dataIndex:'shipName', key:'shipName' },
-    { title:'Ghi chú', dataIndex:'note', key:'note' },
+    { title:'Radius', dataIndex:'radius', key:'radius' },
+    { title:'Loại giới hạn', dataIndex:'limitType', key:'limitType' },
+    { title:'Băng thông', dataIndex:'bandwidth', key:'bandwidth' },
+    { title:'Hiệu lực', dataIndex:'validity', key:'validity' },
+    { title:'Đơn vị', dataIndex:'unit', key:'unit' },
+    { title:'Giá', dataIndex:'price', key:'price', render: v => v?.toLocaleString() },
+    { title:'Shared Users', dataIndex:'sharedUsers', key:'sharedUsers' },
+    { title:'Tàu', dataIndex:['vessel','shipName'], key:'vessel', render: (v, rec) => rec.vessel?.shipName || '' },
     {
       title:'Hành động', key:'action', render:(_,rec)=>(
         <Space size="middle">
@@ -43,10 +47,10 @@ export default function PackageManagement() {
     }
   ];
 
-  const fetchData = async (filters = {}) => {
+  const fetchData = async () => {
     setLoading(true);
     try {
-      const res = await axios.get('/api/packages',{params:filters});
+      const res = await axios.get('/api/packages');
       setData(res.data.map(i=>({ ...i, key: i._id })));
     } catch {
       message.error('Không thể tải dữ liệu');
@@ -55,13 +59,20 @@ export default function PackageManagement() {
     }
   };
 
-  useEffect(()=>{ fetchData(); },[]);
+  const fetchShips = async () => {
+    try {
+      const res = await axios.get('/api/ships');
+      setShips(res.data);
+    } catch {
+      message.error('Không thể tải danh sách tàu');
+    }
+  };
 
-  const onSearchId   = v => fetchData({ id: v });
-  const onSearchName = v => fetchData({ name: v });
+  useEffect(()=>{ fetchData(); fetchShips(); },[]);
+
   const onRefresh    = () => fetchData();
   const onCreate     = () => { setEditing(null); form.resetFields(); setVisible(true); };
-  const onEdit       = rec => { setEditing(rec); form.setFieldsValue(rec); setVisible(true); };
+  const onEdit       = rec => { setEditing(rec); form.setFieldsValue({ ...rec, vessel: rec.vessel?._id }); setVisible(true); };
   const onDelete     = async id => {
     try { await axios.delete(`/api/packages/${id}`); message.success('Xóa thành công'); fetchData(); }
     catch { message.error('Xóa thất bại'); }
@@ -70,7 +81,7 @@ export default function PackageManagement() {
   const onFinish = async vals => {
     try {
       if (editing) await axios.put(`/api/packages/${editing._id}`, vals);
-      else          await axios.post('/api/packages',        vals);
+      else         await axios.post('/api/packages', vals);
       message.success('Thao tác thành công');
       setVisible(false); form.resetFields(); fetchData();
     } catch {
@@ -101,8 +112,6 @@ export default function PackageManagement() {
       <Space wrap style={{ marginBottom:16 }}>
         <div className="filter-bar">
             <Space wrap>
-                <Input.Search placeholder="Tìm theo ID" onSearch={onSearchId} style={{width:160}} />
-                <Input.Search placeholder="Tìm theo tên" onSearch={onSearchName} style={{width:200}} />
                 <Button type="primary" onClick={onCreate}>Tạo mới</Button>
                 <Button icon={<ReloadOutlined />} onClick={onRefresh}>Refresh</Button>
                 <Dropdown overlay={menu} trigger={['click']}>
@@ -133,107 +142,125 @@ export default function PackageManagement() {
           layout="vertical"
           onFinish={onFinish}
           initialValues={{
-            name:'', type:'', category:'', price:null,
-            duration:null, volume:'', speed:'', shipName:'', note:''
+            name:'', radius:'', limitType:'', bandwidth:'', validity:null,
+            unit:'', price:null, sharedUsers:1, vessel:''
           }}
         >
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item
                 name="name" label="Tên gói"
-                rules={[
-                  { required:true, message:'Nhập tên gói' },
-                  { min: 3, message:'Tối thiểu 3 ký tự' },  //citeturn0search3
-                  { max: 50, message:'Tối đa 50 ký tự' }
-                ]}
+                rules={[{ required:true, message:'Nhập tên gói' }]}
               >
                 <Input placeholder="VD: Gói 50G" />
               </Form.Item>
             </Col>
             <Col span={12}>
               <Form.Item
-                name="type" label="Loại gói"
-                rules={[
-                  { required:true, message:'Nhập loại gói' },
-                  { pattern:/^[A-Za-z ]+$/, message:'Chỉ chữ và khoảng trắng' }  //citeturn0search7
-                ]}
+                name="radius" label="Radius"
               >
-                <Input placeholder="VD: Trả trước" />
+                <Input placeholder="Radius (nếu có)" />
               </Form.Item>
             </Col>
             <Col span={12}>
               <Form.Item
-                name="category" label="Phân loại"
-                rules={[
-                  { required:true, message:'Nhập phân loại' },
-                  { pattern:/^[A-Za-z ]+$/, message:'Chỉ chữ và khoảng trắng' }
-                ]}
+                name="limitType" label="Loại giới hạn"
+                rules={[{ required:true, message:'Chọn loại giới hạn' }]}
               >
-                <Input placeholder="VD: Cá nhân" />
+                <Select placeholder="Chọn loại giới hạn">
+                  {LIMIT_TYPE_OPTIONS.map(opt=>(
+                    <Select.Option key={opt} value={opt}>{opt}</Select.Option>
+                  ))}
+                </Select>
               </Form.Item>
             </Col>
             <Col span={12}>
               <Form.Item
-                name="price" label="Giá (VNĐ)"
-                rules={[
-                  { required:true, message:'Nhập giá' },
-                  { type:'number', min:1000, message:'Giá ≥ 1.000 VNĐ' }      //citeturn0search0
-                ]}
+                name="bandwidth" label="Băng thông"
+                rules={[{ required:true, message:'Chọn băng thông' }]}
               >
-                <InputNumber style={{ width:'100%' }} min={1000} step={1000} />
+                <Select placeholder="Chọn băng thông">
+                  {BANDWIDTH_OPTIONS.map(opt=>(
+                    <Select.Option key={opt} value={opt}>{opt}</Select.Option>
+                  ))}
+                </Select>
               </Form.Item>
             </Col>
             <Col span={12}>
               <Form.Item
-                name="duration" label="Thời gian (ngày)"
-                rules={[
-                  { required:true, message:'Nhập số ngày' },
-                  { type:'number', min:1, message:'Phải ≥ 1 ngày' }
-                ]}
+                name="validity" label="Hiệu lực"
+                rules={[{ required:true, message:'Nhập số ngày/giờ hiệu lực' }]}
               >
                 <InputNumber style={{ width:'100%' }} min={1} />
               </Form.Item>
             </Col>
             <Col span={12}>
               <Form.Item
-                name="volume" label="Dung lượng"
-                rules={[
-                  { required:true, message:'Nhập dung lượng' },
-                  { pattern:/^\d+G$/, message:'Ví dụ: 50G, 100G' }            //citeturn0search4
-                ]}
+                name="unit" label="Đơn vị"
+                rules={[{ required:true, message:'Chọn đơn vị' }]}
               >
-                <Input placeholder="Ví dụ: 50G" />
+                <Select placeholder="Chọn đơn vị">
+                  {UNIT_OPTIONS.map(opt=>(
+                    <Select.Option key={opt} value={opt}>{opt}</Select.Option>
+                  ))}
+                </Select>
               </Form.Item>
             </Col>
             <Col span={12}>
               <Form.Item
-                name="speed" label="Tốc độ"
-                rules={[
-                  { required:true, message:'Nhập tốc độ' },
-                  { pattern:/^\d+\/\d+ Mbps$/, message:'Ví dụ: 10/10 Mbps' }  //citeturn0search4
-                ]}
+                name="price" label="Giá"
+                rules={[{ required:true, message:'Nhập giá' }]}
               >
-                <Input placeholder="VD: 10/10 Mbps" />
+                <Select
+                  placeholder="Chọn giá hoặc nhập"
+                  dropdownRender={menu => (
+                    <>
+                      {menu}
+                      <div style={{ display:'flex', padding:8 }}>
+                        <InputNumber
+                          style={{ flex:1 }}
+                          min={1000}
+                          placeholder="Nhập giá khác"
+                          onPressEnter={e=>{
+                            const v = e.target.value;
+                            if(v && !PRICE_OPTIONS.includes(Number(v))) {
+                              PRICE_OPTIONS.push(Number(v));
+                            }
+                          }}
+                        />
+                      </div>
+                    </>
+                  )}
+                  allowClear
+                >
+                  {PRICE_OPTIONS.map(opt=>(
+                    <Select.Option key={opt} value={opt}>{opt.toLocaleString()} VNĐ</Select.Option>
+                  ))}
+                </Select>
               </Form.Item>
             </Col>
             <Col span={12}>
               <Form.Item
-                name="shipName" label="Tên tàu"
-                rules={[
-                  { required:true, message:'Chọn tên tàu' }
-                ]}
+                name="sharedUsers" label="Shared Users"
+                rules={[{ required:true, message:'Chọn số user dùng chung' }]}
               >
-                <Input placeholder="Tên tàu liên kết" />
+                <Select placeholder="Chọn số user">
+                  {[...Array(10)].map((_,i)=>
+                    <Select.Option key={i+1} value={i+1}>{i+1}</Select.Option>
+                  )}
+                </Select>
               </Form.Item>
             </Col>
-            <Col span={24}>
+            <Col span={12}>
               <Form.Item
-                name="note" label="Ghi chú"
-                rules={[
-                  { max:200, message:'Tối đa 200 ký tự' }                  //citeturn0search9
-                ]}
+                name="vessel" label="Tàu"
+                rules={[{ required:true, message:'Chọn tàu' }]}
               >
-                <Input.TextArea rows={2} placeholder="Ghi chú thêm (tối đa 200 ký tự)" />
+                <Select placeholder="Chọn tàu">
+                  {ships.map(ship=>(
+                    <Select.Option key={ship._id} value={ship._id}>{ship.shipName}</Select.Option>
+                  ))}
+                </Select>
               </Form.Item>
             </Col>
           </Row>

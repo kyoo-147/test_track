@@ -6,6 +6,7 @@ const subscriptionSchema = new mongoose.Schema({
   networkPackage: String,
   networkStatus: String,
   servicePackage: String,
+  topUp: String,
   serviceStatus: String,
   phone: String,
   note: String,

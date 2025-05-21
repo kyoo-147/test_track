@@ -1,32 +1,20 @@
-# Sử dụng Node.js LTS làm base image
-FROM node:18 as build
+FROM node:18-alpine
 
-# Thiết lập thư mục làm việc
 WORKDIR /app
 
-# Sao chép package.json và package-lock.json
+# 1. Copy dependencies trước để tận dụng cache
 COPY package.json package-lock.json ./
-
-# Cài đặt các dependencies
 RUN npm install
 
-# Sao chép toàn bộ mã nguồn vào container
+# 2. Copy toàn bộ source (trừ các file .dockerignore)
 COPY . .
 
-# Build ứng dụng React
-RUN npm run build
+# 3. Cấu hình live-reload an toàn
+ENV CHOKIDAR_USEPOLLING=true \
+    CHOKIDAR_INTERVAL=100 \
+    CHOKIDAR_IGNORE=node_modules,build \
+    NODE_OPTIONS=--max-old-space-size=1024
 
-# Sử dụng Nginx để phục vụ ứng dụng
-FROM nginx:alpine
+EXPOSE 3000
 
-# Sao chép build từ bước trước vào thư mục Nginx
-COPY --from=build /app/build /usr/share/nginx/html
-
-# Sao chép file cấu hình Nginx
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-
-# Mở cổng 80
-EXPOSE 80
-
-# Khởi chạy Nginx
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["npm", "start"]
