@@ -166,3 +166,5 @@ VI. Phần cuối cùng là phần Settting -> Tương ứng với SpeedManageme
 * Sales chỉ có thể xem thông tin về trang dashboard.
 * Và một Chú ý cực kỳ quan trọng: Tại trang được login với quyền Tech sẽ chỉ được xem username của công ty tương ứng với công ty của Tech đó (ví dụ Tech của công ty A chỉ xem được các tàu và user của công ty A và có quyền chỉnh sửa user của công ty A) không xem được xem các dữ liệu của công ty khác.
 
+![logo](https://github.com/user-attachments/assets/4205945c-729a-4abd-9353-f42142e609ab)
+![bb7072af2a01985fc110](https://github.com/user-attachments/assets/72b48cb9-b006-43aa-8562-9cef6cb60b03)
