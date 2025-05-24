@@ -38,7 +38,8 @@ VI. Settings (SpeedManagement.js)
   1. Bảng tạo users hệ thống: username, password, role (Admin, Tech, Sales).
   2. Phân quyền:
      - Admin: full quyền.
-     - Tech: quản lý Users & Packages, chỉ thấy data công ty mình.
+     - Tech: quản lý Users & Packages, chỉ t![background-of-the-topographic-map-vintage-outdoors-style-geographic-abstract-grid-line-topography-map-contour-background-free-vector](https://github.com/user-attachments/assets/f0750973-04b0-46e5-83b0-03b44cc2582a)
+hấy data công ty mình.
      - Sales: chỉ xem Dashboard.
   3. API trả data theo `companyId` của Tech.
 
@@ -169,3 +170,4 @@ VI. Phần cuối cùng là phần Settting -> Tương ứng với SpeedManageme
 ![logo](https://github.com/user-attachments/assets/4205945c-729a-4abd-9353-f42142e609ab)
 ![bb7072af2a01985fc110](https://github.com/user-attachments/assets/72b48cb9-b006-43aa-8562-9cef6cb60b03)
 ![map-pattern](https://github.com/user-attachments/assets/4991fea1-cbdc-4a98-aa42-b4134d5aab06)
+![background-of-the-topographic-map-vintage-outdoors-style-geographic-abstract-grid-line-topography-map-contour-background-free-vector](https://github.com/user-attachments/assets/03c7ead9-e72e-4078-af1d-f9d4aeed1b99)
