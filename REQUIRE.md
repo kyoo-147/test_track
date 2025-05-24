@@ -168,3 +168,4 @@ VI. Phần cuối cùng là phần Settting -> Tương ứng với SpeedManageme
 
 ![logo](https://github.com/user-attachments/assets/4205945c-729a-4abd-9353-f42142e609ab)
 ![bb7072af2a01985fc110](https://github.com/user-attachments/assets/72b48cb9-b006-43aa-8562-9cef6cb60b03)
+![map-pattern](https://github.com/user-attachments/assets/4991fea1-cbdc-4a98-aa42-b4134d5aab06)
